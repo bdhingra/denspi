@@ -60,7 +60,9 @@ class MIPSSparse(MIPS):
         self.tfidf_dump_paths = sorted(
             [os.path.join(tfidf_dump_dir, name) for name in os.listdir(tfidf_dump_dir) if 'hdf5' in name])
         dump_names = [os.path.splitext(os.path.basename(path))[0] for path in self.tfidf_dump_paths]
-        dump_ranges = [list(map(int, name.split('_')[0].split('-'))) for name in dump_names]
+        # dump_ranges = [list(map(int, name.split('_')[0].split('-'))) for name in dump_names]
+        dump_ranges = [[0, 1]]
+        self.dump_ranges = dump_ranges
         self.tfidf_dumps = [h5py.File(path, 'r') for path in self.tfidf_dump_paths]
         assert dump_ranges == self.dump_ranges
         self.sparse_weight = sparse_weight

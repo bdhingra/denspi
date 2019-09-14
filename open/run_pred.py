@@ -119,6 +119,7 @@ def run_pred(args):
     od_results = []
     step_size = args.step_size
     is_ = range(0, query.shape[0], step_size)
+    #is_ = range(0, 1000, step_size)
     for i in tqdm(is_):
         each_query = query[i:i + step_size]
         if args.sparse:

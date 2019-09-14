@@ -29,6 +29,7 @@ def get_args():
     parser.add_argument('--trained_index_path', default='trained.faiss')
     parser.add_argument('--index_path', default='index.faiss')
     parser.add_argument('--idx2id_path', default='idx2id.hdf5')
+    parser.add_argument('--ranker_path', default='wikipedia/docs-tfidf-ngram=2-hash=16777216-tokenizer=simple.npz')
 
     # Adding options
     parser.add_argument('--add_all', default=False, action='store_true')
@@ -45,6 +46,7 @@ def get_args():
     parser.add_argument('--para', default=False, action='store_true')
     parser.add_argument('--doc_sample_ratio', default=0.2, type=float)
     parser.add_argument('--vec_sample_ratio', default=0.2, type=float)
+    parser.add_argument('--sparse_type', default='dp', type=str)
 
     parser.add_argument('--fs', default='local', help='Must be `local`. Do not change.')
     parser.add_argument('--cuda', default=False, action='store_true')
@@ -72,6 +74,7 @@ def get_args():
     parser.add_argument('--top_k', default=10, type=int)
     # parser.add_argument('--para', default=False, action='store_true')
     parser.add_argument('--sparse', default=False, action='store_true')
+    parser.add_argument('--mid_top_k', default=100, type=int)
 
     parser.add_argument('--no_od', default=False, action='store_true')
     parser.add_argument('--draft', default=False, action='store_true')
@@ -83,6 +86,10 @@ def get_args():
     parser.add_argument('--do_f1', default=False, action='store_true')
     parser.add_argument('--k_start', default=1, type=int)
     parser.add_argument('--scores_dir', default='scores')
+
+    parser.add_argument('--filter', default=False, action='store_true')
+    parser.add_argument('--search_strategy', default='dense_first')
+    parser.add_argument('--doc_top_k', default=5, type=int)
 
     args = parser.parse_args()
 
@@ -105,7 +112,8 @@ def get_args():
     args.phrase_dump_dir = phrase_dump_path if os.path.exists(phrase_dump_path) else os.path.join(args.dump_dir,
                                                                                                   'phrase')
 
-    args.question_dump_path = os.path.join(args.dump_dir, args.question_dump_path)
+    args.tfidf_dump_dir = os.path.join(args.dump_dir, 'tfidf')
+    # args.question_dump_path = os.path.join(args.dump_dir, args.question_dump_path)
     # args.index_path = os.path.join(args.index_dir, args.index_path)
     # args.idx2id_path = os.path.join(args.index_dir, args.idx2id_path)
 

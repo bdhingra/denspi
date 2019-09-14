@@ -108,7 +108,7 @@ def main():
                  args.start:args.end]
     print(dump_paths)
     dump_names = [os.path.splitext(os.path.basename(path))[0] for path in dump_paths]
-    dump_ranges = [list(map(int, name.split('-'))) for name in dump_names]
+    # dump_ranges = [list(map(int, name.split('-'))) for name in dump_names]
     phrase_dumps = [h5py.File(path, 'r') for path in dump_paths]
 
     ranker = None

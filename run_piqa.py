@@ -95,7 +95,8 @@ def main():
     parser.add_argument("--do_train_sparse", default=False, action='store_true', help='Train sparse or not.')
     parser.add_argument("--do_predict", default=False, action='store_true', help="Whether to run eval on the dev set.")
     parser.add_argument('--do_eval', default=False, action='store_true')
-    parser.add_argument('--do_embed_question', default=False, action='store_true')
+    parser.add_argument('--do_embed_train_question', default=False, action='store_true')
+    parser.add_argument('--do_embed_predict_question', default=False, action='store_true')
     parser.add_argument('--do_index', default=False, action='store_true')
     parser.add_argument('--do_serve', default=False, action='store_true')
 
@@ -398,7 +399,7 @@ def main():
 
             processor.save(epoch + 1)
 
-    if args.do_embed_question:
+    if args.do_embed_train_question:
         question_examples = read_squad_examples(
             question_only=True,
             input_file=args.train_file, is_training=False, draft=args.draft,
@@ -668,7 +669,7 @@ def main():
             process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
             output, error = process.communicate()
 
-    if args.do_embed_question:
+    if args.do_embed_predict_question:
         question_examples = read_squad_examples(
             question_only=True,
             input_file=args.predict_file, is_training=False, draft=args.draft,
