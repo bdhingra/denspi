@@ -69,7 +69,7 @@ def evaluate(dataset, predictions, k, no_f1=False):
                     # print(message, file=sys.stderr)
                     continue
                 ground_truths = list(map(lambda x: x['text'], qa['answers']))
-                prediction = predictions[qa['id']][:k]
+                prediction = [pred[1] for pred in predictions[qa['id']][:k]]
                 if len(prediction) == 0:
                     rank, cur_exact_match = None, 0.0
                 else:

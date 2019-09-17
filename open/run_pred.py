@@ -119,7 +119,7 @@ def run_pred(args):
     od_results = []
     step_size = args.step_size
     is_ = range(0, query.shape[0], step_size)
-    #is_ = range(0, 1000, step_size)
+    #is_ = range(0, 500, step_size)
     for i in tqdm(is_):
         each_query = query[i:i + step_size]
         if args.sparse:
@@ -144,7 +144,7 @@ def run_pred(args):
                                            doc_top_k=args.doc_top_k)
             od_results.extend(each_results)
 
-    top_k_answers = {query_id: [result['answer'] for result in each_results]
+    top_k_answers = {query_id: [(result["score"], result['answer'], result["context"]) for result in each_results]
                      for (_, _, query_id, _), each_results in zip(pairs, od_results)}
     answers = {query_id: each_results[0]['answer']
                for (_, _, query_id, _), each_results in zip(pairs, cd_results)}
