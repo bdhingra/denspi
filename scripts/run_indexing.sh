@@ -13,6 +13,6 @@ HDF5_USE_FILE_LOCKING=FALSE python run_piqa.py \
     --output_dir $OUTPUT \
     --load_dir $MODELDIR \
     --iteration 1 \
-    --filter_threshold -2 \
-    --predict_batch_size 64 \
+    --filter_threshold 0.2 \
+    --predict_batch_size 16 \
     --parallel

@@ -1,10 +1,10 @@
 #!/bin/bash -e
 
-BASE_DIR="downloads/slot-filling-1hop-template"
-QRY_FILE="squad_template_dev_qrys.json"
-#DOC_FILE="dev-v1.1.json"
-DOC_FILE="squad_longparagraphs-00000-of-00010_10Kdev.json"
-OUT_DIR="output/dump_sf1hop_para50_template"
+BASE_DIR="downloads/slot-filling-2hop-template"
+QRY_FILE="gold_1st_hop_templates.json"
+DOC_FILE="squad_twohop-longparagraphs-00000-of-00010_120K.json"
+#OUT_DIR="output/dump_sf2hop_1st_hop_para50_template"
+OUT_DIR="output/dump_sf2hop_1st_hop_para50_template_filt0.2"
 
 export HDF5_USE_FILE_LOCKING=FALSE
 

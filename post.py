@@ -15,6 +15,7 @@
 import collections
 import json
 import logging
+import multiprocessing
 from multiprocessing import Queue
 from multiprocessing.pool import ThreadPool
 from threading import Thread
@@ -273,6 +274,55 @@ def pool_func(item):
     metadata_ = filter_metadata(metadata_, item[-1])
     return metadata_
 
+def add_write(in_list):
+    with h5py.File(hdf5_path) as f:
+        for item in in_list:
+            args = list(item[:3]) + [max_answer_length, do_lower_case, verbose_logging] + [item[3], filter_threshold]
+            metadata = pool_func(args)
+            did = str(metadata['did'])
+            if did in f:
+                if not split_by_para:
+                    print('%s exists; replacing' % did)
+                    del f[did]
+                    dg = f.create_group(did)
+                else:
+                    dg = f[did]
+            else:
+                dg = f.create_group(did)
+            if split_by_para:
+                pid = str(metadata['pid'])
+                if pid in dg:
+                    print('%s %s exists; skipping' % (did, pid))
+                    continue
+                dg = dg.create_group(pid)
+
+            dg.attrs['context'] = metadata['context']
+            dg.attrs['title'] = metadata['title']
+            if offset is not None:
+                metadata = compress_metadata(metadata, offset, scale)
+                dg.attrs['offset'] = offset
+                dg.attrs['scale'] = scale
+            dg.create_dataset('start', data=metadata['start'])
+            dg.create_dataset('end', data=metadata['end'])
+            if metadata['sparse'] is not None:
+                dg.create_dataset('sparse', data=metadata['sparse'])
+                dg.create_dataset('input_ids', data=metadata['input_ids'])
+            dg.create_dataset('span_logits', data=metadata['span_logits'])
+            dg.create_dataset('start2end', data=metadata['start2end'])
+            dg.create_dataset('word2char_start', data=metadata['word2char_start'])
+            dg.create_dataset('word2char_end', data=metadata['word2char_end'])
+
+def add(inqueue_, outqueue_, max_answer_length, do_lower_case, verbose_logging, filter_threshold, process_num):
+    print("starting add process", process_num)
+    for item in iter(inqueue_.get, None):
+        args = list(item[:3]) + [max_answer_length, do_lower_case, verbose_logging] + [item[3], filter_threshold]
+        out = pool_func(args)
+        print("process", process_num, "running")
+        outqueue_.put(out)
+    print("finished add process", process_num)
+
+    # outqueue_.put(None)
+
 
 def write_hdf5(all_examples, all_features, all_results,
                max_answer_length, do_lower_case, hdf5_path, filter_threshold, verbose_logging, offset=None, scale=None,
@@ -304,15 +354,8 @@ def write_hdf5(all_examples, all_features, all_results,
 
             outqueue_.put(None)
 
-    def add(inqueue_, outqueue_):
-        for item in iter(inqueue_.get, None):
-            args = list(item[:3]) + [max_answer_length, do_lower_case, verbose_logging] + [item[3], filter_threshold]
-            out = pool_func(args)
-            outqueue_.put(out)
-
-        outqueue_.put(None)
-
     def write(outqueue_):
+        print("starting write process")
         with h5py.File(hdf5_path) as f:
             while True:
                 metadata = outqueue_.get()
@@ -352,16 +395,26 @@ def write_hdf5(all_examples, all_features, all_results,
 
                 else:
                     break
+        print("finishing write process")
 
     features = []
     results = []
-    inqueue = Queue(maxsize=500)
-    outqueue = Queue(maxsize=500)
-    write_p = Thread(target=write, args=(outqueue,))
-    p = Thread(target=add, args=(inqueue, outqueue))
+    # in_list = []
+    # manager = multiprocessing.Manager()
+    inqueue = Queue(maxsize=50000)
+    outqueue = Queue(maxsize=50000)
+    write_p = Process(target=write, args=(outqueue,))
     write_p.start()
-    p.start()
+    # pool = multiprocessing.Pool(16, add, (inqueue, outqueue))
+    # pool = multiprocessing.Pool(16)
+    all_processes = []
+    for pi in range(multiprocessing.cpu_count() - 1):
+      p = Process(target=add, args=(inqueue, outqueue, max_answer_length, do_lower_case,
+                                    verbose_logging, filter_threshold, pi))
+      p.start()
+      all_processes.append(p)
 
+    # with multiprocessing.Pool(16) as pool:
     start_time = time()
     for count, result in enumerate(tqdm(all_results, total=len(all_features))):
         example = id2example[result.unique_id]
@@ -373,6 +426,7 @@ def write_hdf5(all_examples, all_features, all_results,
 
         if condition:
             in_ = (id2example, features, results, split_by_para)
+            # in_list.append(in_)
             print('inqueue size: %d, outqueue size: %d' % (inqueue.qsize(), outqueue.qsize()))
             inqueue.put(in_)
             # add(id2example, features, results, split_by_para)
@@ -383,10 +437,18 @@ def write_hdf5(all_examples, all_features, all_results,
             results.append(result)
         if count % 500 == 0:
             print('%d/%d at %.1f' % (count + 1, len(all_features), time() - start_time))
+        # if count % 16 == 0:
+        #     pool.map_async(add, (inqueue, outqueue))
     in_ = (id2example, features, results, split_by_para)
+    # in_list.append(in_)
     inqueue.put(in_)
-    inqueue.put(None)
-    p.join()
+    # pool.map(add, (inqueue, outqueue))
+    for p in all_processes:
+      inqueue.put(None)
+      p.join()
+    outqueue.put(None)
+    # pool.close()
+    # pool.join()
     write_p.join()
 
 
