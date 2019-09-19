@@ -15,6 +15,7 @@
 import collections
 import json
 import logging
+import os
 import multiprocessing
 from multiprocessing import Queue
 from multiprocessing.pool import ThreadPool
@@ -28,6 +29,8 @@ from tqdm import tqdm as tqdm_
 import torch
 
 import tokenization
+
+os.system("taskset -p 0xff %d" % os.getpid())
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt='%m/%d/%Y %H:%M:%S',
@@ -312,17 +315,6 @@ def add_write(in_list):
             dg.create_dataset('word2char_start', data=metadata['word2char_start'])
             dg.create_dataset('word2char_end', data=metadata['word2char_end'])
 
-def add(inqueue_, outqueue_, max_answer_length, do_lower_case, verbose_logging, filter_threshold, process_num):
-    print("starting add process", process_num)
-    for item in iter(inqueue_.get, None):
-        args = list(item[:3]) + [max_answer_length, do_lower_case, verbose_logging] + [item[3], filter_threshold]
-        out = pool_func(args)
-        print("process", process_num, "running")
-        outqueue_.put(out)
-    print("finished add process", process_num)
-
-    # outqueue_.put(None)
-
 
 def write_hdf5(all_examples, all_features, all_results,
                max_answer_length, do_lower_case, hdf5_path, filter_threshold, verbose_logging, offset=None, scale=None,
@@ -353,6 +345,18 @@ def write_hdf5(all_examples, all_features, all_results,
             map(outqueue_.put, out)
 
             outqueue_.put(None)
+
+    def add(inqueue_, outqueue_, process_num):
+        print("starting add process", process_num)
+        for item in iter(inqueue_.get, None):
+            my_features = [id2feature[result.unique_id] for result in item]
+            args = [id2example, my_features, item, max_answer_length, do_lower_case, verbose_logging, split_by_para, filter_threshold]
+            # args = list(item[:3]) + [max_answer_length, do_lower_case, verbose_logging] + [item[3], filter_threshold]
+            out = pool_func(args)
+            outqueue_.put(out)
+        print("finished add process", process_num)
+
+        # outqueue_.put(None)
 
     def write(outqueue_):
         print("starting write process")
@@ -409,8 +413,7 @@ def write_hdf5(all_examples, all_features, all_results,
     # pool = multiprocessing.Pool(16)
     all_processes = []
     for pi in range(multiprocessing.cpu_count() - 1):
-      p = Process(target=add, args=(inqueue, outqueue, max_answer_length, do_lower_case,
-                                    verbose_logging, filter_threshold, pi))
+      p = Process(target=add, args=(inqueue, outqueue, pi))
       p.start()
       all_processes.append(p)
 
@@ -425,7 +428,8 @@ def write_hdf5(all_examples, all_features, all_results,
             condition = len(features) > 0 and example.pid == 0 and feature.doc_span_index == 0
 
         if condition:
-            in_ = (id2example, features, results, split_by_para)
+            # in_ = (id2example, features, results, split_by_para)
+            in_ = results
             # in_list.append(in_)
             print('inqueue size: %d, outqueue size: %d' % (inqueue.qsize(), outqueue.qsize()))
             inqueue.put(in_)
@@ -439,12 +443,14 @@ def write_hdf5(all_examples, all_features, all_results,
             print('%d/%d at %.1f' % (count + 1, len(all_features), time() - start_time))
         # if count % 16 == 0:
         #     pool.map_async(add, (inqueue, outqueue))
-    in_ = (id2example, features, results, split_by_para)
+    #in_ = (id2example, features, results, split_by_para)
+    in_ = results
     # in_list.append(in_)
     inqueue.put(in_)
     # pool.map(add, (inqueue, outqueue))
     for p in all_processes:
       inqueue.put(None)
+    for p in all_processes:
       p.join()
     outqueue.put(None)
     # pool.close()

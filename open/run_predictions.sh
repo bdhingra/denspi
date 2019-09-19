@@ -18,6 +18,7 @@ for SPW in 0.1; do
         --search_strategy "sparse_first" \
         --num_clusters 1024 \
         --start_top_k 1000 \
+        --mid_top_k 50 \
         --doc_sample_ratio 0.2 \
         --vec_sample_ratio 0.2 \
         --pred_dir "sparse_first_spw${SPW}" \
