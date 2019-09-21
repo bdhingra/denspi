@@ -520,8 +520,8 @@ def main():
                     if args.optimize_on_cpu:
                         model.to(device)
                     global_step += 1
-
-            processor.save(epoch + 1)
+              if step > 0 and step % 1000 == 0:
+                processor.save(step)
 
     if args.do_train_filter:
         train_examples = read_squad_examples(
