@@ -9,6 +9,7 @@
 import numpy as np
 import scipy.sparse as sp
 import argparse
+import io
 import os
 import math
 import logging
@@ -202,14 +203,26 @@ if __name__ == '__main__':
         logging.info('Reordering with given data file %s' % args.data_file)
         id2doc = doc_dict[1]
         title2id = {}
-        with open(args.data_file) as f:
+        with open(args.data_file, "rb") as f:
             for ii, line in enumerate(f):
                 item = json.loads(line.strip())
                 title2id[item["id"]] = ii
         doc_mat = tfidf.tocoo()
         new_cols = np.zeros_like(doc_mat.col)
         for ii in range(new_cols.shape[0]):
+          try:
             new_cols[ii] = title2id[id2doc[doc_mat.col[ii]]]
+          except KeyError as e:
+            print(ii)
+            for k in title2id.keys():
+              if "a del Agu" in k:
+                print(id2doc[doc_mat.col[ii]])
+                print(type(id2doc[doc_mat.col[ii]]))
+                print(k)
+                print(type(k))
+                print(k == id2doc[doc_mat.col[ii]])
+                print(k.encode("utf-8") == id2doc[doc_mat.col[ii]].encode("utf-8"))
+            raise e
         tfidf = sp.csr_matrix((doc_mat.data, (doc_mat.row, new_cols)), shape=doc_mat.shape)
         doc_dict = (title2id, sorted(title2id.keys(), key=lambda x: title2id[x]))
         print("new shape:", tfidf.shape)

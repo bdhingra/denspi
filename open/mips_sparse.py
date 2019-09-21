@@ -78,7 +78,11 @@ class MIPSSparse(MIPS):
 
     def get_tfidf_group(self, doc_idx):
         if len(self.tfidf_dumps) == 1:
-            return self.tfidf_dumps[0][str(doc_idx)]
+            try:
+              return self.tfidf_dumps[0][str(doc_idx)]
+            except KeyError:
+              print("WARNING!!! Did not find %d in tfidf dump" % doc_idx)
+              return self.tfidf_dumps[0][str(0)]
         for dump_range, dump in zip(self.dump_ranges, self.tfidf_dumps):
             if dump_range[0] * 1000 <= int(doc_idx) < dump_range[1] * 1000:
                 return dump[str(doc_idx)]
@@ -201,6 +205,8 @@ class MIPSSparse(MIPS):
             else:
                 raise ValueError(search_strategy)
 
+            mid_top_k = min(mid_top_k, start_scores.shape[-1])
+            out_top_k = min(out_top_k, start_scores.shape[-1])
             # rerank and reduce
             rerank_idxs = start_scores.argsort()[-mid_top_k:][::-1]
             doc_idxs = doc_idxs[rerank_idxs]

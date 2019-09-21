@@ -304,6 +304,7 @@ def main():
         model = torch.nn.DataParallel(model)
 
     if args.do_load:
+        print("binding model")
         bind_model(processor, model)
         processor.load(args.iteration, session=args.load_dir)
 

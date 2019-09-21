@@ -3,17 +3,24 @@
 import json
 import argparse
 import random
+import collections
+
+random.seed(123)
 
 def create_squad_questions(subject_list, relation_template, ans_object, id):
   qas = []
   _to_answer = lambda x: {"answer_start": 0, "text": x}
-  for ii, subj in enumerate(subject_list):
-    qas.append({
-        "question": relation_template.replace("XXX", subj),
-        "id": id + "_" + str(ii),
-        "answers": [_to_answer(ans)
-                    for ans in ans_object["aliases"].keys() + [ans_object["name"]]],
-        })
+  ii = 0
+  for subj in subject_list:
+    for tmpl in relation_template:
+      qas.append({
+          "question": tmpl.replace("XXX", subj[1]),
+          "subject_confidence": subj[0],
+          "id": id + "_" + str(ii),
+          "answers": [_to_answer(ans)
+                      for ans in list(ans_object["aliases"].keys()) + [ans_object["name"]]],
+          })
+      ii += 1
   return {"context": "dummy", "qas": qas}
 
 if __name__ == "__main__":
@@ -27,44 +34,62 @@ if __name__ == "__main__":
                       help="answer predictions from previous hop.")
   parser.add_argument("--top_k", type=int, default=1,
                       help="number of answers to generate templates from.")
+  parser.add_argument("--num_templates", type=int, default=1,
+                      help="Max number of templates to use per question")
+  parser.add_argument("--max_ques", type=int, default=None,
+                      help="Max number of questions to output")
   args = parser.parse_args()
 
   templates = None
   if args.template_file is not None:
     with open(args.template_file) as f:
       templates = json.load(f)
+      del templates["instance of"]
+      del templates["subclass of"]
 
   answers = None
   if args.answer_file is not None:
     with open(args.answer_file) as f:
-      answers = json.load(f)
+      raw_answers = json.load(f)
+      answers = collections.defaultdict(list)
+      for id, ans in raw_answers.items():
+        answers[id.rsplit("_", 1)[0]].extend(ans)
+    answers = {k: sorted(v, key=lambda x: x[0], reverse=True)
+            for k, v in answers.items()}
+    print("%d answers available" % len(answers))
 
   with open(args.slot_filling_file) as f:
     paras = []
+    total = 0
     for line in f:
       item = json.loads(line.strip())
+      total += 1
       if templates is not None:
         if item["relation"][args.hop]["text"][0] not in templates:
-          print("%s not found in templates, skipping." %
-                item["relation"][args.hop]["text"][0])
+          # print("%s not found in templates, skipping." %
+          #       item["relation"][args.hop]["text"][0])
           continue
-        template = random.choice(
-            templates[item["relation"][args.hop]["text"][0]])
+        max_ = min(len(templates[item["relation"][args.hop]["text"][0]]),
+                   args.num_templates)
+        template = random.sample(
+            templates[item["relation"][args.hop]["text"][0]], max_)
       else:
-        template = "XXX . " + item["relation"][args.hop]["text"][0]
+        template = ["XXX . " + item["relation"][args.hop]["text"][0]]
       if args.hop == 0:
-        subjs = [item["subject"]["name"]]
+        subjs = [(1.0, item["subject"]["name"])]
         obj = item["bridge"]
       else:
         if answers is None:
-          subjs = [item["bridge"]["name"]]
+          subjs = [(1.0, item["bridge"]["name"])]
         else:
           if item["id"] not in answers:
-            print("answers for %s not found, skipping" % item["id"])
+            print("answers for %s not found, skipping (e.g. %s)" %
+                    (item["id"], list(answers.keys())[0]))
             continue
-          subjs = answers[item["id"]][:args.top_k]
+        subjs = [ans[0:2] for ans in answers[item["id"]][:args.top_k]]
         obj = item["object"]
       paras.append(create_squad_questions(subjs, template, obj, item["id"]))
+  print("created %d queries, given %d inputs" % (len(paras), total))
 
   with open(args.out_file, "w") as f:
     json.dump({"version": "2-hop", "data": [{"title": "", "paragraphs": paras}]}, f)

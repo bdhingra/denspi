@@ -137,7 +137,7 @@ def run_index_pred_eval(args):
     t1 = time()
     run_pred(args)
     t2 = time()
-    evaluate_recall(args)
+    #evaluate_recall(args)
 
     print('run_index: %.1f mins, run_pred: %.1f mins' % ((t1 - t0) / 60, (t2 - t1) / 60))
 

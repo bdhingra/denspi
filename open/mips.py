@@ -113,7 +113,11 @@ class MIPS(object):
 
     def get_doc_group(self, doc_idx):
         if len(self.phrase_dumps) == 1:
-            return self.phrase_dumps[0][str(doc_idx)]
+            try:
+              return self.phrase_dumps[0][str(doc_idx)]
+            except KeyError:
+              print("WARNING!!! Did not find %d in phrase dump" % doc_idx)
+              return self.phrase_dumps[0][str(0)]
         for dump_range, dump in zip(self.dump_ranges, self.phrase_dumps):
             if dump_range[0] * 1000 <= int(doc_idx) < dump_range[1] * 1000:
                 if str(doc_idx) not in dump:
