@@ -77,10 +77,23 @@ if __name__ == "__main__":
         template = ["XXX . " + item["relation"][args.hop]["text"][0]]
       if args.hop == 0:
         subjs = [(1.0, item["subject"]["name"])]
-        obj = item["bridge"]
+        obj = item["bridge"] if "bridge" in item else item["bridge_0"]
+      elif args.hop == 1:
+        if answers is None:
+          if "bridge" in item:
+            subjs = [(1.0, item["bridge"]["name"])]
+          else:
+            subjs = [(1.0, item["bridge_0"]["name"])]
+        else:
+          if item["id"] not in answers:
+            print("answers for %s not found, skipping (e.g. %s)" %
+                    (item["id"], list(answers.keys())[0]))
+            continue
+        subjs = [ans[0:2] for ans in answers[item["id"]][:args.top_k]]
+        obj = item["object"] if not "bridge_1" in item else item["bridge_1"]
       else:
         if answers is None:
-          subjs = [(1.0, item["bridge"]["name"])]
+          subjs = [(1.0, item["bridge_1"]["name"])]
         else:
           if item["id"] not in answers:
             print("answers for %s not found, skipping (e.g. %s)" %

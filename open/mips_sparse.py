@@ -67,7 +67,7 @@ class MIPSSparse(MIPS):
         assert dump_ranges == self.dump_ranges
         self.sparse_weight = sparse_weight
         print('reading tfidf ranker at %s' % ranker_path)
-        self.ranker = TfidfDocRanker(ranker_path)
+        self.ranker = TfidfDocRanker(ranker_path, strict=False)
         self.sparse_type = sparse_type
         self.num_docs_list = []
         if max_norm_path is None:
